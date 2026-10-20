@@ -1,0 +1,18 @@
+# Android / Gradle
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 本机构建产物（APK 仍保留在 dist/ 便于交付）
+*.hprof
+*.log
+
+# 签名密钥与签名中间文件：绝不入库
+keystore/*.jks
+keystore/*.keystore
+*.idsig

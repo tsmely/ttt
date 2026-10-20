@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<full-backup-content>
+    <exclude domain="database" path="qingping.db" />
+    <exclude domain="database" path="qingping.db-wal" />
+    <exclude domain="database" path="qingping.db-shm" />
+    <exclude domain="sharedpref" path="qingping.xml" />
+</full-backup-content>

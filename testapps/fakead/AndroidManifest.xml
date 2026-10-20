@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.qingping.fakead">
+
+    <application
+        android:label="假广告（测试）"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+        <activity
+            android:name=".AdActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".JumpActivity"
+            android:exported="true" />
+
+        <!-- 故意使用广告 SDK 的包名，测试「插屏广告自动关闭」 -->
+        <activity
+            android:name="com.bytedance.sdk.openadsdk.FullScreenAdActivity"
+            android:exported="true" />
+    </application>
+</manifest>

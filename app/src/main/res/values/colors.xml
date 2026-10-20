@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="bg">#F4F7F5</color>
+    <color name="card">#FFFFFF</color>
+    <color name="ink">#12211C</color>
+    <color name="sub">#6C817A</color>
+    <color name="faint">#9BADA6</color>
+    <color name="line">#E7EEEA</color>
+    <color name="primary">#0E9E79</color>
+    <color name="primary_dark">#087058</color>
+    <color name="primary_light">#E7F6F0</color>
+    <color name="mint">#3FC79A</color>
+    <color name="warn">#D9952F</color>
+    <color name="warn_light">#FDF3E1</color>
+    <color name="danger">#D4574F</color>
+    <color name="danger_light">#FBEAE8</color>
+    <color name="white">#FFFFFF</color>
+    <color name="hero_start">#12A982</color>
+    <color name="hero_end">#066A53</color>
+    <color name="track">#E3ECE8</color>
+    <color name="nav_bg">#FFFFFF</color>
+    <color name="scrim">#66000000</color>
+</resources>

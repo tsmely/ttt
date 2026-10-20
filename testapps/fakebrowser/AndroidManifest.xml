@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.qingping.fakebrowser">
+
+    <application
+        android:label="假浏览器（测试）"
+        android:theme="@android:style/Theme.Material.NoActionBar">
+        <activity
+            android:name=".BrowserActivity"
+            android:exported="true" />
+    </application>
+</manifest>
