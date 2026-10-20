@@ -18,6 +18,10 @@
             android:name=".JumpActivity"
             android:exported="true" />
 
+        <activity
+            android:name=".CloseIconActivity"
+            android:exported="true" />
+
         <!-- 故意使用广告 SDK 的包名，测试「插屏广告自动关闭」 -->
         <activity
             android:name="com.bytedance.sdk.openadsdk.FullScreenAdActivity"

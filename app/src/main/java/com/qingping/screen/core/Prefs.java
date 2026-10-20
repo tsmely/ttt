@@ -124,6 +124,17 @@ public final class Prefs {
         sp.edit().putBoolean("close_interstitial", value).apply();
     }
 
+    /**
+     * 识别屏幕右下角没有文字的 × 关闭按钮（需要广告上下文）。
+     */
+    public boolean cornerClose() {
+        return sp.getBoolean("corner_close", true);
+    }
+
+    public void setCornerClose(boolean value) {
+        sp.edit().putBoolean("corner_close", value).apply();
+    }
+
     public boolean vibrate() {
         return sp.getBoolean("vibrate", true);
     }

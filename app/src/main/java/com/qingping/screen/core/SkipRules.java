@@ -30,6 +30,11 @@ public final class SkipRules {
     private static final Pattern CN_CLOSE_AD = Pattern.compile(
             "^(关闭|關閉)\\s*(广告|廣告|插屏)$");
 
+    /** 角落里的「关闭 / ×」小按钮，只在广告上下文里使用 */
+    private static final Pattern CLOSE_LABEL = Pattern.compile(
+            "^(关闭|關閉|关闭广告|關閉廣告|关闭此广告|关闭当前广告|"
+                    + "close|dismiss|close ad|close this ad|close the ad|×|✕|✖|╳)$");
+
     /** skip / skip ad / close ad / close this ad */
     private static final Pattern EN_SKIP = Pattern.compile(
             "^(skip|skip\\s+ad|skip\\s+ads|skip\\s+advert|skip\\s+advertisement|close\\s+ad|close\\s+ads|close\\s+this\\s+ad)$");
@@ -175,6 +180,70 @@ public final class SkipRules {
                     || v.contains("splash") || v.contains("interstitial");
         }
         return false;
+    }
+
+    /**
+     * 是否是「关闭 / ×」类文案。默认只允许出现在广告上下文 + 屏幕角落，
+     * 避免把普通弹窗的「关闭」误当成广告关闭。
+     */
+    public static boolean isCloseLabel(String text) {
+        String t = normalize(text);
+        if (t.isEmpty() || t.length() > 12) {
+            return false;
+        }
+        return CLOSE_LABEL.matcher(t).matches();
+    }
+
+    /** 关闭按钮的资源 id，例如 iv_close / ad_dismiss / img_dislike。 */
+    public static boolean isCloseViewId(String viewId) {
+        if (viewId == null || viewId.isEmpty()) {
+            return false;
+        }
+        String v = viewId.toLowerCase(Locale.ROOT);
+        if (v.contains("close") || v.contains("dismiss") || v.contains("dislike")) {
+            return true;
+        }
+        return v.contains("skip") && (v.contains("ad") || v.contains("splash"));
+    }
+
+    /**
+     * 广告上下文打分：分越高越像「全屏广告」。
+     * 用于决定是否允许点击右下角那个没有文字的小 ×。
+     */
+    public static int adMarkerScore(String text) {
+        String t = normalize(text);
+        if (t.isEmpty()) {
+            return 0;
+        }
+        int score = 0;
+        if (t.contains("广告") || t.contains("廣告")) {
+            score += 2;
+        }
+        if (t.contains("立即下载")) {
+            score += 2;
+        }
+        if (t.contains("上滑")) {
+            score += 2;
+        }
+        if (t.contains("查看详情")) {
+            score += 1;
+        }
+        if (t.contains("应用名称")) {
+            score += 1;
+        }
+        if (t.contains("隐私协议") || t.contains("隐私政策")) {
+            score += 1;
+        }
+        if (t.contains("权限详情")) {
+            score += 1;
+        }
+        if (t.contains("备案信息")) {
+            score += 1;
+        }
+        if (t.contains("跳过") || t.contains("skip")) {
+            score += 1;
+        }
+        return score;
     }
 
     /** 当前窗口是否属于已知广告 SDK（用于「插屏自动关闭」与置信度判断）。 */

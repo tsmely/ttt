@@ -24,11 +24,12 @@
 | 能力 | 实现方式 |
 | --- | --- |
 | 自动点「跳过」 | 应用进入前台后的时间窗内，在指定屏幕区域查找「跳过 / 跳过广告 / 关闭广告 / skip」等文字、contentDescription 或广告 SDK 的控件 id，执行点击或坐标手势 |
+| 角落 × 关闭 | 广告界面右下角 / 右上角没有文字的小图标，结合「广告 / 立即下载 / 上滑 / 应用名称」等上下文判断，候选唯一时才点，减少误伤 |
 | 误触跳转拦截 | 开屏阶段前台从 A 应用切到浏览器/应用商店时，自动按返回键回到 A，并记一次「误触跳转」 |
 | 插屏广告自动关闭 | 当前 Activity 属于已知广告 SDK 时，自动按返回 |
 | 按应用统计 | 每次成功拦截写入 `stats(pkg, day, cnt)`，应用列表、排行榜、近 7 天柱状图、最近记录都可查看 |
 | 开机与保活 | 系统托管无障碍服务 + 前台通知服务 + 15 分钟 JobScheduler 巡检 + 厂商自启动设置引导 |
-| 可调规则 | 检测时长、点击区域、自定义关键词、演练模式、防跳转严格/宽松、插屏开关、震动/提示开关 |
+| 可调规则 | 检测时长、点击区域、角落关闭按钮、自定义关键词、演练模式、防跳转严格/宽松、插屏开关、震动/提示开关 |
 
 ## 二、它做不到什么
 
@@ -66,12 +67,12 @@ qingping/
 ├─ tools/
 │  ├─ build-apk.ps1                        不依赖 Gradle 的命令行构建
 │  ├─ build-testapps.ps1                   构建两个验证用测试 APK
-│  └─ RuleTest.java                        43 项规则断言
+│  └─ RuleTest.java                        54 项规则断言
 ├─ testapps/
 │  ├─ fakead/                              假开屏广告 / 假误触跳转 / 假插屏广告
 │  └─ fakebrowser/                         假浏览器落地页
 ├─ keystore/                               本地签名目录（已 gitignore，不随仓库上传）
-├─ dist/QingPing-1.0.0.apk                 已签名安装包
+├─ dist/QingPing-1.0.1.apk                 已签名安装包
 └─ docs/                                   图标与界面截图
 ```
 
@@ -98,14 +99,14 @@ powershell -ExecutionPolicy Bypass -File tools/build-apk.ps1 `
   -Jdk "C:\Program Files\Java\jdk-17"
 ```
 
-脚本依次执行 `aapt2 compile → aapt2 link → javac → d8 → jar 合并 dex → zipalign → apksigner`，产物在 `dist/QingPing-1.0.0.apk`。
+脚本依次执行 `aapt2 compile → aapt2 link → javac → d8 → jar 合并 dex → zipalign → apksigner`，产物在 `dist/QingPing-1.0.1.apk`。
 
 > 仓库不包含签名密钥：`tools/build-apk.ps1` 首次运行会自动生成 `keystore/qingping.jks`（口令 `qingping2024`）。`dist/` 里的 APK 是交付时签名的版本；自行重新构建会得到不同签名，覆盖安装前需要先卸载旧版。要正式分发请换成你自己的密钥并妥善保管。
 
 ## 五、安装与首次配置
 
 ```bash
-adb install -r dist/QingPing-1.0.0.apk
+adb install -r dist/QingPing-1.0.1.apk
 ```
 
 打开「清屏」，按概览页的「守护状态」逐项完成：
@@ -168,7 +169,7 @@ javac -encoding UTF-8 -classpath "%ANDROID_HOME%\platforms\android-35\android.ja
 java -cp build/test RuleTest
 ```
 
-当前 43 项断言全部通过，覆盖文案、控件 id、广告 SDK Activity、跳转目标与严格/宽松策略。
+当前 54 项断言全部通过，覆盖文案、控件 id、关闭按钮、广告上下文评分、广告 SDK Activity、跳转目标与严格/宽松策略。
 
 ### 端到端验证记录
 
@@ -177,6 +178,8 @@ java -cp build/test RuleTest
 | 场景 | 结果 |
 | --- | --- |
 | 打开测试页（右上角「跳过 6」） | 服务在 1 秒内点掉广告，日志 `block splash ... label=跳过 6`，统计 +1 |
+| 右下角无文字 ×（1.0.1） | 广告文案评分 7，`close strong=0 weak=1`，点击成功并退出广告页 |
+| 旧「跳过」回归（1.0.1） | 角落 × 逻辑加入后，右上角「跳过」仍正常命中 |
 | 测试页点击「模拟误触跳转」到假浏览器 | 服务执行返回，焦点回到来源页，日志 `block jump ...`，统计 +1 |
 | 启动类名属于广告 SDK 的全屏页 | 服务自动返回，日志 `close interstitial ...`，统计 +1 |
 | 开启「演练模式」后再打开测试页 | 只提示、不点击，广告正常计时关闭，统计不变 |
@@ -192,9 +195,12 @@ adb install -r dist/test/FakeBrowser.apk
 adb shell am start -n com.qingping.fakead/.AdActivity          # 开屏跳过
 adb shell am start -n com.qingping.fakead/.JumpActivity        # 误触跳转
 adb shell am start -n com.qingping.fakead/com.bytedance.sdk.openadsdk.FullScreenAdActivity  # 插屏关闭
+adb shell am start -n com.qingping.fakead/.CloseIconActivity   # 右下角无文字 ×
 ```
 
 这些测试包只用于本地验证，不会上传任何数据。
+
+> 1.0.1 的「角落 ×」是用同样形态的 `ImageView`（无文字、无 contentDescription、右下角）验证的；真实的 QQ 音乐广告尚未在真机上复测。如果那个 × 没有被无障碍树暴露出来，仍然会漏，需要再加 OCR 或坐标兜底。
 
 ## 十、合规提示
 

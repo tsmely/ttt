@@ -42,6 +42,19 @@ public class RuleTest {
         expect(SkipRules.isSkipViewId("com.x:id/close_btn"), false, "id close_btn");
         expect(SkipRules.isSkipViewId("com.x:id/settings"), false, "id settings");
 
+        // 角落关闭按钮
+        expect(SkipRules.isCloseLabel("关闭"), true, "close label 关闭");
+        expect(SkipRules.isCloseLabel("关闭广告"), true, "close label 关闭广告");
+        expect(SkipRules.isCloseLabel("×"), true, "close label ×");
+        expect(SkipRules.isCloseLabel("✕"), true, "close label ✕");
+        expect(SkipRules.isCloseLabel("取消"), false, "close label 取消");
+        expect(SkipRules.isCloseLabel("关闭订单"), false, "close label 关闭订单");
+        expect(SkipRules.isCloseViewId("com.x:id/iv_close"), true, "close id iv_close");
+        expect(SkipRules.isCloseViewId("com.x:id/ad_dismiss"), true, "close id ad_dismiss");
+        expect(SkipRules.isCloseViewId("com.x:id/download_btn"), false, "close id download");
+        expect(SkipRules.adMarkerScore("广告 立即下载 上滑 应用名称") >= 7, true, "ad score strong");
+        expect(SkipRules.adMarkerScore("普通页面") == 0, true, "ad score none");
+
         // 广告 SDK Activity
         expect(SkipRules.isAdSdkClass("com.bytedance.sdk.openadsdk.activity.TTFullScreenExpressVideoActivity"), true, "pangle activity");
         expect(SkipRules.isAdSdkClass("com.qq.e.ads.PortraitADActivity"), true, "gdt activity");

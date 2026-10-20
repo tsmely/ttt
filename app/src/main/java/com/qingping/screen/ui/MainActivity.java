@@ -178,7 +178,7 @@ public class MainActivity extends Activity implements AppAdapter.Listener {
         recentEmpty = pageOverview.findViewById(R.id.recent_empty);
 
         TextView version = pageOverview.findViewById(R.id.version_chip);
-        version.setText("v1.0.0");
+        version.setText("v1.0.1");
 
         suppressMaster = true;
         masterSwitch.setChecked(prefs.enabled());
@@ -566,6 +566,10 @@ public class MainActivity extends Activity implements AppAdapter.Listener {
         setRegionValue = addNavRow(rulesBox, "点击区域",
                 "只点击这个区域里的跳过按钮，减少误点",
                 regionLabel(), this::showRegionDialog);
+        addDivider(rulesBox);
+        addSwitchRow(rulesBox, "角落关闭按钮",
+                "识别右下角没有文字的 ×，只在广告界面生效",
+                prefs.cornerClose(), prefs::setCornerClose);
         addDivider(rulesBox);
         setJumpValue = addNavRow(rulesBox, "防误触跳转",
                 "开屏时被带去浏览器或应用商店，自动返回",

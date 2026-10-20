@@ -117,7 +117,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
                 android:lineSpacingExtra="4dp"
-                android:text="清屏只做一件事：在你打开别的 App 时，替你点掉开屏广告的「跳过」，并拦住那种一碰就跳走的广告。\n\n它不修改其他应用，不读取你的输入内容，没有联网权限，统计只保存在本机数据库里。\n\n版本 1.0.0 · 本地运行"
+                android:text="清屏只做一件事：在你打开别的 App 时，替你点掉开屏广告的「跳过」，并拦住那种一碰就跳走的广告。\n\n它不修改其他应用，不读取你的输入内容，没有联网权限，统计只保存在本机数据库里。\n\n版本 1.0.1 · 本地运行"
                 android:textColor="@color/sub"
                 android:textSize="12sp" />
 

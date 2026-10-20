@@ -42,8 +42,8 @@ Write-Host "==> aapt2 link"
     --java (Join-Path $build "gen") `
     --min-sdk-version 24 `
     --target-sdk-version 34 `
-    --version-code 1 `
-    --version-name "1.0.0" `
+    --version-code 2 `
+    --version-name "1.0.1" `
     --auto-add-overlay `
     (Join-Path $build "res.zip")
 if ($LASTEXITCODE -ne 0) { throw "aapt2 link failed" }
@@ -94,7 +94,7 @@ if (-not (Test-Path $keyStore)) {
 }
 
 Write-Host "==> apksigner"
-$final = Join-Path $OutDir "QingPing-1.0.0.apk"
+$final = Join-Path $OutDir "QingPing-1.0.1.apk"
 & (Join-Path $bt "apksigner.bat") sign `
     --ks $keyStore --ks-key-alias qingping `
     --ks-pass pass:qingping2024 --key-pass pass:qingping2024 `

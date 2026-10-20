@@ -328,16 +328,39 @@ public class GuardAccessibilityService extends AccessibilityService {
         if (root == null) {
             return;
         }
-        List<AccessibilityNodeInfo> hits = new ArrayList<>(4);
-        collectSkipNodes(root, hits, 0, new int[]{0});
+        ScanResult result = new ScanResult();
+        collectCandidates(root, result, 0, new int[]{0});
 
-        for (AccessibilityNodeInfo node : hits) {
+        if (tryClickCandidates(pkg, result.skipHits, true, "跳过")) {
+            return;
+        }
+
+        // 没有「跳过」文字时，再看右下角 / 右上角那个没有文字的 ×。
+        // 只有界面本身足够像广告（出现「广告 / 立即下载 / 上滑 / 应用名称」等），
+        // 或者有一张接近全屏的大图，才允许点。
+        boolean adContext = result.adScore >= 3 || result.fullScreenImage;
+        if (adContext) {
+            Log.i(TAG, "close strong=" + result.strongCloseHits.size()
+                    + " weak=" + result.weakCloseHits.size()
+                    + " adScore=" + result.adScore + " fullImage=" + result.fullScreenImage);
+            if (!result.strongCloseHits.isEmpty()) {
+                tryClickCandidates(pkg, result.strongCloseHits, false, "关闭");
+            } else if (result.weakCloseHits.size() == 1) {
+                // 没有文字的小图标误点风险高：只有全屏只有这一个候选时才点。
+                tryClickCandidates(pkg, result.weakCloseHits, false, "关闭");
+            }
+        }
+    }
+
+    private boolean tryClickCandidates(String pkg, List<AccessibilityNodeInfo> candidates,
+                                       boolean useRegion, String fallback) {
+        for (AccessibilityNodeInfo node : candidates) {
             Rect bounds = new Rect();
             node.getBoundsInScreen(bounds);
             if (bounds.width() <= 0 || bounds.height() <= 0) {
                 continue;
             }
-            if (!inRegion(bounds)) {
+            if (useRegion && !inRegion(bounds)) {
                 continue;
             }
             if (bounds.width() > screenW * 0.86f && bounds.height() > screenH * 0.55f) {
@@ -348,7 +371,7 @@ public class GuardAccessibilityService extends AccessibilityService {
                 continue;
             }
 
-            String label = labelOf(node);
+            String label = labelOf(node, fallback);
 
             if (prefs.dryRun()) {
                 clickedPkg = pkg;
@@ -357,7 +380,7 @@ public class GuardAccessibilityService extends AccessibilityService {
                 Log.i(TAG, "dry-run candidate pkg=" + pkg + " label=" + label);
                 showToast("演练：本可跳过「" + AppInventory.labelOf(this, pkg)
                         + "」的「" + label + "」");
-                break;
+                return true;
             }
 
             boolean clicked = false;
@@ -369,14 +392,20 @@ public class GuardAccessibilityService extends AccessibilityService {
             }
             if (clicked) {
                 onBlocked(pkg, label);
-                break;
+                return true;
             }
         }
+        return false;
     }
 
-    private void collectSkipNodes(AccessibilityNodeInfo node, List<AccessibilityNodeInfo> out,
-                                  int depth, int[] visited) {
-        if (node == null || depth > 40 || out.size() >= 8 || visited[0] > 800) {
+    private void collectCandidates(AccessibilityNodeInfo node, ScanResult result,
+                                   int depth, int[] visited) {
+        if (node == null || depth > 40 || visited[0] > 900) {
+            return;
+        }
+        if (result.skipHits.size() >= 8
+                && result.strongCloseHits.size() >= 8
+                && result.weakCloseHits.size() >= 8) {
             return;
         }
         visited[0]++;
@@ -384,32 +413,57 @@ public class GuardAccessibilityService extends AccessibilityService {
             return;
         }
 
-        String text = null;
-        CharSequence t = node.getText();
-        if (t != null) {
-            text = t.toString();
-        }
-        String desc = null;
-        CharSequence d = node.getContentDescription();
-        if (d != null) {
-            desc = d.toString();
+        String text = stringOf(node.getText());
+        String desc = stringOf(node.getContentDescription());
+        String className = stringOf(node.getClassName());
+        String viewId = null;
+        try {
+            viewId = node.getViewIdResourceName();
+        } catch (Throwable ignored) {
         }
 
-        boolean hit = SkipRules.isSkipLabel(text, prefs.extraKeywords())
-                || SkipRules.isSkipLabel(desc, prefs.extraKeywords());
+        result.adScore += SkipRules.adMarkerScore(text) + SkipRules.adMarkerScore(desc);
+        if (result.adScore > 20) {
+            result.adScore = 20;
+        }
 
-        if (!hit) {
-            try {
-                String viewId = node.getViewIdResourceName();
-                if (viewId != null && SkipRules.isSkipViewId(viewId)) {
-                    hit = true;
-                }
-            } catch (Throwable ignored) {
+        boolean skip = SkipRules.isSkipLabel(text, prefs.extraKeywords())
+                || SkipRules.isSkipLabel(desc, prefs.extraKeywords())
+                || (viewId != null && SkipRules.isSkipViewId(viewId));
+        if (skip && result.skipHits.size() < 8) {
+            result.skipHits.add(node);
+        }
+
+        boolean close = SkipRules.isCloseLabel(text) || SkipRules.isCloseLabel(desc)
+                || (viewId != null && SkipRules.isCloseViewId(viewId));
+        boolean imageLike = isImageLike(className);
+
+        Rect bounds = null;
+        if (close || imageLike) {
+            bounds = new Rect();
+            node.getBoundsInScreen(bounds);
+            if (bounds.width() <= 0 || bounds.height() <= 0) {
+                bounds = null;
             }
         }
 
-        if (hit) {
-            out.add(node);
+        if (close && bounds != null && inCloseCorner(bounds, false)
+                && isReasonableButton(bounds) && result.strongCloseHits.size() < 8) {
+            result.strongCloseHits.add(node);
+        }
+
+        if (prefs.cornerClose() && imageLike && text.isEmpty() && desc.isEmpty()
+                && bounds != null && inCloseCorner(bounds, true)
+                && isIconSize(bounds) && result.weakCloseHits.size() < 8) {
+            if (!result.weakCloseHits.contains(node)) {
+                result.weakCloseHits.add(node);
+            }
+        }
+
+        if (imageLike && bounds != null
+                && bounds.width() > screenW * 0.62f
+                && bounds.height() > screenH * 0.38f) {
+            result.fullScreenImage = true;
         }
 
         int childCount = node.getChildCount();
@@ -418,11 +472,58 @@ public class GuardAccessibilityService extends AccessibilityService {
             try {
                 child = node.getChild(i);
                 if (child != null) {
-                    collectSkipNodes(child, out, depth + 1, visited);
+                    collectCandidates(child, result, depth + 1, visited);
                 }
             } catch (Throwable ignored) {
             }
         }
+    }
+
+    private static final class ScanResult {
+        final List<AccessibilityNodeInfo> skipHits = new ArrayList<>(4);
+        final List<AccessibilityNodeInfo> strongCloseHits = new ArrayList<>(4);
+        final List<AccessibilityNodeInfo> weakCloseHits = new ArrayList<>(4);
+        int adScore;
+        boolean fullScreenImage;
+    }
+
+    private static String stringOf(CharSequence value) {
+        return value == null ? "" : value.toString();
+    }
+
+    private boolean isImageLike(String className) {
+        return className.contains("ImageView") || className.contains("ImageButton");
+    }
+
+    /** 只接受右侧的右上角 / 右下角。strict 用于没有文字的小图标。 */
+    private boolean inCloseCorner(Rect r, boolean strict) {
+        int cx = r.centerX();
+        int cy = r.centerY();
+        float edgeX = strict ? 0.88f : 0.80f;
+        float edgeY = strict ? 0.88f : 0.80f;
+        boolean right = cx >= screenW * edgeX;
+        boolean top = cy <= screenH * (1f - edgeY);
+        boolean bottom = cy >= screenH * edgeY;
+        return right && (top || bottom);
+    }
+
+    private boolean isIconSize(Rect r) {
+        int min = dp(14);
+        int max = dp(64);
+        return r.width() >= min && r.width() <= max
+                && r.height() >= min && r.height() <= max;
+    }
+
+    private boolean isReasonableButton(Rect r) {
+        int min = dp(12);
+        int maxWidth = Math.min(dp(120), (int) (screenW * 0.45f));
+        return r.width() >= min && r.height() >= min
+                && r.width() <= maxWidth
+                && r.height() <= screenH * 0.16f;
+    }
+
+    private int dp(float value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private boolean inRegion(Rect r) {
@@ -458,7 +559,7 @@ public class GuardAccessibilityService extends AccessibilityService {
         }
     }
 
-    private String labelOf(AccessibilityNodeInfo node) {
+    private String labelOf(AccessibilityNodeInfo node, String fallback) {
         CharSequence t = node.getText();
         if (t != null && t.length() > 0) {
             return clip(t.toString());
@@ -475,7 +576,7 @@ public class GuardAccessibilityService extends AccessibilityService {
             }
         } catch (Throwable ignored) {
         }
-        return "跳过";
+        return fallback;
     }
 
     private static String clip(String value) {
